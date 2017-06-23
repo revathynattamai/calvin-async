@@ -1,3 +1,5 @@
+require('chai').should();
+
 const app = require('../../app');
 
 const expect = require('chai').expect;
@@ -5,8 +7,9 @@ require('chai').should();
 
 const request = require('supertest');
 
-const circleDAO = require('../../dao').circle;
 
+const circleDAO = require('../../dao/circle');
+const mailboxDAO= require('../../dao/mailbox/');
 
 describe('/circle api', () => {
   let circleId;
@@ -17,50 +20,38 @@ describe('/circle api', () => {
       .expect('Content-Type', /json/)
       .end((err, res) => {
         if (err) { done(err); return; }
-        expect(res.body).to.be.a('string');
-        circleId = res.body;
-        circleDAO.checkIfCircleExists(circleId, (error, circleExists) => {
-          if (err) { done(err); return; }
-          circleExists.should.be.equal(true);
-          done();
-        });
+        expect(res.body).to.have.property('id');
+        expect(res.body.id).to.be.a('string');
+        circleId = res.body.id;
+        circleDAO.checkIfCircleExists(circleId).should.be.equal(true);
+        mailboxDAO.checkIfMailboxExists(circleId).should.be.equal(true);
+        done();
       });
   });
 
   it('should delete a circle', (done) => {
-    circleDAO.checkIfCircleExists(circleId, (err, doesCircleExists) => {
-      doesCircleExists.should.be.equal(true);
-      request(app)
-        .delete(`/circle/${circleId}`)
-        .expect(200)
-        .expect('Content-Type', /json/)
-        .end((err1, res) => {
-          if (err1) { done(err1); return; }
-          expect(res.body).to.equal(circleId);
-          circleDAO.checkIfCircleExists(circleId, (error, circleExists) => {
-            circleExists.should.be.equal(false);
-            done();
-          });
-        });
-    });
+    request(app)
+      .delete(`/circle/${circleId}`)
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .end((err, res) => {
+        if (err) { done(err); return; }
+        circleDAO.checkIfCircleExists(circleId).should.be.equal(false);
+        expect(res.body.id).to.equal(circleId);
+        done();
+      });
   });
 
   it('should fail when we try to delete a circle id that does not exist', (done) => {
-    circleDAO.checkIfCircleExists(circleId, (err, doesCircleExists) => {
-      doesCircleExists.should.be.equal(false);
-      request(app)
-        .delete(`/circle/${circleId}`)
-        .expect(404)
-        .expect('Content-Type', /json/)
-        .end((err1, res) => {
-          if (err1) { done(err1); } else {
-            circleDAO.checkIfCircleExists(circleId, (error, circleExists) => {
-              if (error) { done(error); return; }
-              circleExists.should.be.equal(false);
-              done();
-            });
-          }
-        });
-    });
+    request(app)
+      .delete(`/circle/${circleId}`)
+      .expect(404)
+      .expect('Content-Type', /json/)
+      .end((err, res) => {
+        if (err) { done(err); return; }
+        circleDAO.checkIfCircleExists(circleId).should.be.equal(false);
+        expect(res.body).to.have.property('message').equal(`Circle id ${circleId} does not exist`);
+        done();
+      });
   });
 });
